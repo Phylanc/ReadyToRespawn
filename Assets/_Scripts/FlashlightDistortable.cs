@@ -7,71 +7,76 @@ public class FlashlightDistortable : MonoBehaviour
     public Color overlayColor = new Color(0.4f, 0f, 0.8f, 1f);
     public Shader overlayShader;
 
-    float      _current;
-    bool       _hitThisFrame;
+    // Чуть больше чем оригинал чтобы не z-fight
+    [Range(1.001f, 1.05f)]
+    public float shellScale = 1.01f;
 
-    Material       _overlayMat;
-    SpriteRenderer _shellSprite;
-    GameObject     _shellObject;
+    float    _current;
+    bool     _hitThisFrame;
 
-    SpriteRenderer _sourceSprite;
+    Material  _overlayMat;
+    Renderer  _shellRenderer;
+    GameObject _shellObject;
 
     static readonly int DistortID      = Shader.PropertyToID("_DistortAmount");
     static readonly int OverlayColorID = Shader.PropertyToID("_OverlayColor");
 
     void Awake()
     {
-        // Ищем SpriteRenderer
-        _sourceSprite = GetComponent<SpriteRenderer>();
-        if (_sourceSprite == null)
-            _sourceSprite = GetComponentInChildren<SpriteRenderer>();
+        // Найти MeshFilter и Renderer на себе или ребёнке
+        MeshFilter mf = GetComponent<MeshFilter>();
+        Renderer   rend = GetComponent<Renderer>();
 
-        if (_sourceSprite == null)
+        if (mf == null) mf   = GetComponentInChildren<MeshFilter>();
+        if (rend == null) rend = GetComponentInChildren<Renderer>();
+
+        if (mf == null || rend == null)
         {
-            Debug.LogError($"[Distortable] SpriteRenderer не найден на '{name}'");
+            Debug.LogError($"[Distortable] MeshFilter или Renderer не найден на '{name}'");
             enabled = false;
             return;
         }
 
-        // Ищем шейдер
+        // Найти шейдер
         if (overlayShader == null)
-            overlayShader = Shader.Find("Custom/FlashlightSpriteOverlay");
+            overlayShader = Shader.Find("Custom/FlashlightOverlay");
 
         if (overlayShader == null)
         {
-            Debug.LogError("[Distortable] Шейдер Custom/FlashlightSpriteOverlay не найден!");
+            Debug.LogError("[Distortable] Шейдер Custom/FlashlightOverlay не найден!");
             enabled = false;
             return;
         }
 
-        // Создаём материал оверлея
+        // Создаём материал
         _overlayMat = new Material(overlayShader);
         _overlayMat.SetColor(OverlayColorID, overlayColor);
         _overlayMat.SetFloat(DistortID, 0f);
 
-        // Создаём дочерний объект-копию спрайта
+        // Создаём дочерний объект с той же мешью
         _shellObject = new GameObject("_FlashlightOverlayShell");
-        _shellObject.transform.SetParent(_sourceSprite.transform, worldPositionStays: false);
-        _shellObject.transform.localPosition = new Vector3(0f, 0f, -0.01f); // чуть перед оригиналом
+        _shellObject.transform.SetParent(rend.transform, worldPositionStays: false);
+        _shellObject.transform.localPosition = Vector3.zero;
         _shellObject.transform.localRotation = Quaternion.identity;
-        _shellObject.transform.localScale    = Vector3.one;
+        _shellObject.transform.localScale    = Vector3.one * shellScale;
 
-        // SpriteRenderer с тем же спрайтом
-        _shellSprite              = _shellObject.AddComponent<SpriteRenderer>();
-        _shellSprite.sprite       = _sourceSprite.sprite;
-        _shellSprite.material     = _overlayMat;
-        _shellSprite.sortingLayerID = _sourceSprite.sortingLayerID;
-        _shellSprite.sortingOrder = _sourceSprite.sortingOrder + 1; // поверх оригинала
+        // Вешаем ту же меш
+        var shellMF = _shellObject.AddComponent<MeshFilter>();
+        shellMF.sharedMesh = mf.sharedMesh;
 
-        // Синхронизируем флип со источником
-        _shellSprite.flipX = _sourceSprite.flipX;
-        _shellSprite.flipY = _sourceSprite.flipY;
+        // Вешаем renderer только с оверлейным материалом
+        _shellRenderer = _shellObject.AddComponent<MeshRenderer>();
+        _shellRenderer.material = _overlayMat;
+        _shellRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _shellRenderer.receiveShadows    = false;
 
+        // Начинаем невидимым
         _shellObject.SetActive(false);
 
-        Debug.Log($"[Distortable] '{name}' — спрайт-оверлей создан успешно");
+        Debug.Log($"[Distortable] '{name}' — shell создан успешно");
     }
 
+    // Вызывается из FlashlightController каждые 0.1 сек
     public void Hit()
     {
         _hitThisFrame = true;
@@ -79,22 +84,12 @@ public class FlashlightDistortable : MonoBehaviour
 
     void Update()
     {
-        // Синхронизируем спрайт если он мог смениться (анимация)
-        if (_shellSprite != null && _sourceSprite != null)
-        {
-            if (_shellSprite.sprite != _sourceSprite.sprite)
-                _shellSprite.sprite = _sourceSprite.sprite;
-
-            // Синхронизируем флип (если враг разворачивается)
-            _shellSprite.flipX = _sourceSprite.flipX;
-            _shellSprite.flipY = _sourceSprite.flipY;
-        }
-
-        float target  = _hitThisFrame ? 1f : 0f;
-        float speed   = (_current < target) ? 999f : fadeSpeed;
-        _current      = Mathf.MoveTowards(_current, target, Time.deltaTime * speed);
+        float target = _hitThisFrame ? 1f : 0f;
+        float speed  = (_current < target) ? 999f : fadeSpeed;
+        _current     = Mathf.MoveTowards(_current, target, Time.deltaTime * speed);
         _hitThisFrame = false;
 
+        // Включаем/выключаем shell объект
         bool shouldShow = _current > 0.001f;
         if (_shellObject.activeSelf != shouldShow)
             _shellObject.SetActive(shouldShow);
