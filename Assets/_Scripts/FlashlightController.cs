@@ -11,10 +11,10 @@ public class FlashlightController : MonoBehaviour
     public float activeDuration  = 2f;
 
     [Header("Урон в конусе")]
-    public float range           = 10f;
+    public float  range           = 10f;
     [Range(1f, 89f)]
-    public float coneAngle       = 25f;
-    public float damagePerSecond = 50f;
+    public float  coneAngle       = 25f;
+    public float  damagePerSecond = 50f;
     public LayerMask enemyLayer;
 
     [Header("Gizmos")]
@@ -34,28 +34,20 @@ public class FlashlightController : MonoBehaviour
             flashlight = GetComponentInChildren<Light>(includeInactive: true);
 
         if (flashlight == null)
-            Debug.LogError("[Flashlight] Light-компонент не найден!");
+            Debug.LogError("[Flashlight] Light не найден!");
         else
-        {
             flashlight.enabled = false;
-            Debug.Log($"[Flashlight] Light найден: {flashlight.name}");
-        }
 
         _cosThreshold = Mathf.Cos(coneAngle * Mathf.Deg2Rad);
 
         if (enemyLayer.value == 0)
-            Debug.LogError("[Flashlight] enemyLayer = Nothing! Выбери слой врагов в инспекторе.");
-        else
-            Debug.Log($"[Flashlight] enemyLayer = {LayerMaskToString(enemyLayer)}");
+            Debug.LogError("[Flashlight] enemyLayer не назначен!");
     }
 
     void Update()
     {
-        if (Input.GetKeyDown(flashlightKey) && !_isOn)
-            Activate();
-
-        if (Input.GetKeyUp(flashlightKey) && _isOn)
-            Deactivate();
+        if (Input.GetKeyDown(flashlightKey) && !_isOn) Activate();
+        if (Input.GetKeyUp(flashlightKey)   &&  _isOn) Deactivate();
     }
 
     void Activate()
@@ -65,7 +57,6 @@ public class FlashlightController : MonoBehaviour
         StopAllRoutines();
         _damageRoutine  = StartCoroutine(DamageTick());
         _autoOffRoutine = StartCoroutine(AutoOff());
-        Debug.Log("[Flashlight] Включен");
     }
 
     void Deactivate()
@@ -73,7 +64,6 @@ public class FlashlightController : MonoBehaviour
         _isOn = false;
         if (flashlight != null) flashlight.enabled = false;
         StopAllRoutines();
-        Debug.Log("[Flashlight] Выключен");
     }
 
     void StopAllRoutines()
@@ -85,49 +75,29 @@ public class FlashlightController : MonoBehaviour
     IEnumerator AutoOff()
     {
         yield return new WaitForSeconds(activeDuration);
-        Debug.Log("[Flashlight] Время вышло - выключаем");
         Deactivate();
     }
 
     IEnumerator DamageTick()
     {
         float dmg = damagePerSecond * 0.1f;
-        Debug.Log($"[Flashlight] DamageTick запущен. Урон за тик = {dmg}, range = {range}, coneAngle = {coneAngle}");
 
         while (_isOn)
         {
-            // --- Отладка: все коллайдеры вообще без маски ---
-            Collider[] allNoMask = Physics.OverlapSphere(transform.position, range);
-            Debug.Log($"[Flashlight] Все коллайдеры в радиусе (без маски): {allNoMask.Length}");
-            foreach (var c in allNoMask)
-                Debug.Log($"  - '{c.name}' | слой: {LayerMask.LayerToName(c.gameObject.layer)} (index {c.gameObject.layer})");
-
-            // --- Урон с маской ---
             Collider[] enemies = Physics.OverlapSphere(transform.position, range, enemyLayer);
-            Debug.Log($"[Flashlight] OverlapSphere с enemyLayer нашёл: {enemies.Length}");
 
             foreach (var col in enemies)
             {
-                bool inCone = InCone(col.transform.position);
-                float dot   = Vector3.Dot(transform.forward,
-                              (col.transform.position - transform.position).normalized);
-
-                Debug.Log($"[Flashlight] Враг '{col.name}' | в конусе: {inCone} | dot: {dot:F2} | порог: {_cosThreshold:F2}");
-
-                if (!inCone) continue;
+                if (!InCone(col.transform.position)) continue;
 
                 if (col.TryGetComponent<Enemy>(out var e))
                 {
                     e.TakeDamage(dmg);
-                    Debug.Log($"[Flashlight] Нанесли {dmg} урона '{col.name}'");
-                }
-                else
-                {
-                    Debug.LogWarning($"[Flashlight] '{col.name}' в enemyLayer но Enemy.cs не найден!");
+                    e.OnFlashlightHit();
                 }
             }
 
-            // --- Искажение без маски ---
+            // Искажение всех объектов
             Collider[] all = Physics.OverlapSphere(transform.position, range);
             foreach (var col in all)
             {
@@ -151,18 +121,13 @@ public class FlashlightController : MonoBehaviour
         _cosThreshold = Mathf.Cos(coneAngle * Mathf.Deg2Rad);
     }
 
-    // --- Gizmos ---
     void OnDrawGizmos()
     {
         if (!showGizmos) return;
-
-        // Сфера дальности
         Gizmos.color = new Color(1f, 1f, 0f, 0.15f);
         Gizmos.DrawSphere(transform.position, range);
         Gizmos.color = new Color(1f, 1f, 0f, 0.8f);
         Gizmos.DrawWireSphere(transform.position, range);
-
-        // Конус фонарика
         DrawConeGizmo();
     }
 
@@ -176,12 +141,10 @@ public class FlashlightController : MonoBehaviour
 
     void DrawConeGizmo()
     {
-        float halfAngle = coneAngle * Mathf.Deg2Rad;
         Vector3 forward = transform.forward;
         Vector3 origin  = transform.position;
 
-        // 4 луча по краям конуса
-        Vector3[] directions =
+        Vector3[] dirs =
         {
             Quaternion.AngleAxis( coneAngle, transform.up)    * forward,
             Quaternion.AngleAxis(-coneAngle, transform.up)    * forward,
@@ -190,11 +153,9 @@ public class FlashlightController : MonoBehaviour
         };
 
         Gizmos.color = _isOn ? Color.red : new Color(0.2f, 0.8f, 1f, 0.9f);
+        foreach (var d in dirs)
+            Gizmos.DrawRay(origin, d * range);
 
-        foreach (var dir in directions)
-            Gizmos.DrawRay(origin, dir * range);
-
-        // Центральный луч
         Gizmos.color = Color.white;
         Gizmos.DrawRay(origin, forward * range);
     }
