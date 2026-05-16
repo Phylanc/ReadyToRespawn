@@ -1,0 +1,179 @@
+/* Retro arcade palette and layout */
+.arcade-root {
+	flex-grow: 1;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0);
+	justify-content: center;
+	align-items: center;
+	font-family: "Consolas";
+	color: #e9d6a3;
+}
+
+.bg-grid {
+	display: none;
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #06050a;
+	opacity: 1;
+}
+
+.bg-glow {
+	display: none;
+	position: absolute;
+	left: -15%;
+	top: -10%;
+	right: -15%;
+	bottom: -10%;
+	background-color: #120f1f;
+	opacity: 0.9;
+}
+
+.scanlines {
+	display: none;
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background-image: linear-gradient(rgba(0, 0, 0, 0.35) 1px, rgba(0, 0, 0, 0) 2px);
+	background-size: 100% 4px;
+	opacity: 0.45;
+}
+
+.vignette {
+	display: none;
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background-color: rgba(0, 0, 0, 0.35);
+	border-width: 6px;
+	border-color: rgba(0, 0, 0, 0.55);
+	border-radius: 14px;
+}
+
+.menu-frame {
+	width: 92%;
+	max-width: 1180px;
+	height: 84%;
+	max-height: 860px;
+	border-width: 0;
+	border-color: rgba(0, 0, 0, 0);
+	border-radius: 18px;
+	background-color: rgba(0, 0, 0, 0);
+	padding: 34px 36px;
+	justify-content: flex-start;
+	align-items: center;
+	gap: 20px;
+}
+
+.game-title {
+	display: none;
+}
+
+.press-any {
+	margin-top: 180px;
+	font-size: 28px;
+	color: #9de2ff;
+	text-shadow: 0 0 8px rgba(157, 226, 255, 0.7);
+}
+
+.menu-buttons {
+	width: 74%;
+	margin-top: 120px;
+	gap: 8px;
+}
+
+.menu-btn {
+	height: 50px;
+	font-size: 18px;
+	border-width: 2px;
+	border-color: #5ad0ff;
+	border-radius: 6px;
+	background-color: rgba(13, 26, 40, 0.85);
+	color: #d9f0ff;
+	text-shadow: 0 0 6px rgba(90, 208, 255, 0.7);
+}
+
+.menu-btn:hover {
+	background-color: rgba(20, 48, 72, 0.95);
+}
+
+.menu-btn-selected {
+	border-color: #fff2a6;
+	background-color: rgba(28, 54, 82, 0.95);
+	color: #fff2a6;
+	text-shadow: 0 0 10px rgba(255, 242, 166, 0.85);
+}
+
+.menu-btn.primary {
+	border-color: #ffd66b;
+	color: #ffd66b;
+	text-shadow: 0 0 8px rgba(255, 214, 107, 0.8);
+}
+
+.menu-btn.danger {
+	border-color: #ff6b6b;
+	color: #ff6b6b;
+	text-shadow: 0 0 8px rgba(255, 107, 107, 0.7);
+}
+
+.menu-hints {
+	margin-top: 10px;
+	gap: 2px;
+	align-items: center;
+}
+
+.hint-line {
+	font-size: 12px;
+	color: #a9ff8d;
+}
+
+.panel {
+	width: 74%;
+	padding: 18px 20px;
+	border-width: 3px;
+	border-color: #4fe8c1;
+	border-radius: 12px;
+	background-color: rgba(7, 12, 20, 0.9);
+	gap: 10px;
+	align-items: center;
+}
+
+.panel-title {
+	font-size: 24px;
+	-unity-font-style: bold;
+	color: #f8e17b;
+	text-shadow: 0 0 10px rgba(248, 225, 123, 0.75);
+}
+
+.panel-text {
+	font-size: 15px;
+	color: #9de2ff;
+}
+
+.panel-row {
+	width: 100%;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.panel-label {
+	font-size: 15px;
+	color: #d9f0ff;
+}
+
+.panel-slider {
+	width: 60%;
+}
+
+.is-hidden {
+	display: none;
+}

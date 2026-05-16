@@ -1,0 +1,41 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI/css.uss?fileID=7433441132597879392&amp;guid=aa65841519df07f4d9366fd821c49e00&amp;type=3#css" />
+    <ui:VisualElement class="arcade-root">
+        <ui:VisualElement class="bg-grid" />
+        <ui:VisualElement class="bg-glow" />
+        <ui:VisualElement class="scanlines" />
+        <ui:VisualElement class="vignette" />
+        <ui:VisualElement class="frame menu-frame" style="height: 680px;">
+            <ui:Label text="Ready To Respawn" class="game-title" />
+            <ui:Label name="pressAnyLabel" text="Нажмите любую клавишу для старта" class="press-any" style="white-space: pre;" />
+            <ui:VisualElement name="menuButtons" class="menu-buttons is-hidden">
+                <ui:Button name="startButton" text="НАЧАТЬ" class="menu-btn primary" />
+                <ui:Button name="settingsButton" text="НАСТРОЙКИ" class="menu-btn" />
+                <ui:Button name="leaderboardButton" text="ТАБЛИЦА РЕКОРДОВ" class="menu-btn" />
+                <ui:Button name="exitButton" text="ВЫХОД" class="menu-btn danger" />
+            </ui:VisualElement>
+            <ui:VisualElement name="menuHints" class="menu-hints is-hidden">
+                <ui:Label text="Enter / Space - выбрать" class="hint-line" />
+                <ui:Label text="Esc - назад" class="hint-line" />
+                <ui:Label text="WASD / Стрелки - навигация" class="hint-line" />
+            </ui:VisualElement>
+            <ui:VisualElement name="settingsPanel" class="panel is-hidden">
+                <ui:Label text="НАСТРОЙКИ" class="panel-title" />
+                <ui:VisualElement class="panel-row">
+                    <ui:Label text="Музыка" class="panel-label" />
+                    <ui:Slider name="musicSlider" lowValue="0" highValue="1" value="0.8" class="panel-slider" />
+                </ui:VisualElement>
+                <ui:VisualElement class="panel-row">
+                    <ui:Label text="Звук" class="panel-label" />
+                    <ui:Slider name="sfxSlider" lowValue="0" highValue="1" value="0.8" class="panel-slider" />
+                </ui:VisualElement>
+                <ui:Button name="settingsBackButton" text="НАЗАД" class="menu-btn" />
+            </ui:VisualElement>
+            <ui:VisualElement name="leaderboardPanel" class="panel is-hidden">
+                <ui:Label text="ТАБЛИЦА РЕКОРДОВ" class="panel-title" />
+                <ui:Label text="Скоро появится" class="panel-text" />
+                <ui:Button name="leaderboardBackButton" text="НАЗАД" class="menu-btn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
