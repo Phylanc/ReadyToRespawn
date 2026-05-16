@@ -348,10 +348,10 @@ MonoBehaviour:
     m_Value: 10
   intensity:
     m_OverrideState: 1
-    m_Value: 0.064
+    m_Value: 0.107
   response:
     m_OverrideState: 1
-    m_Value: 0.652
+    m_Value: 0.8
   texture:
     m_OverrideState: 1
     m_Value: {fileID: 2800000, guid: 91a309bfd7ebe164491fd27bbee63a50, type: 3}
@@ -462,7 +462,7 @@ MonoBehaviour:
     m_Value: 0
   saturation:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: -100
 --- !u!114 &-2779249098809486837
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -554,7 +554,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d7fd9488000d3734a9e00ee676215985, type: 3}
-  m_Name: Global Volume Profile
+  m_Name: BlackWhite
   m_EditorClassIdentifier: 
   components:
   - {fileID: 4599953841088923024}
@@ -591,7 +591,7 @@ MonoBehaviour:
   active: 1
   intensity:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: 0.468
 --- !u!114 &1717176899292475802
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -626,10 +626,10 @@ MonoBehaviour:
   active: 1
   distance:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: 0.317
   cropToFit:
     m_OverrideState: 1
-    m_Value: 1
+    m_Value: 0
 --- !u!114 &4599953841088923024
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -651,10 +651,10 @@ MonoBehaviour:
     m_Value: {x: 0.5, y: 0.5}
   intensity:
     m_OverrideState: 1
-    m_Value: 0.455
+    m_Value: 0.426
   smoothness:
     m_OverrideState: 1
-    m_Value: 0.44
+    m_Value: 0.3
   rounded:
     m_OverrideState: 1
     m_Value: 0
