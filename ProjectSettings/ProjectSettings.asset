@@ -939,11 +939,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: 4cba5f67-72fe-4714-860c-4743f7fa4bff
+  cloudProjectId: d4cb0275-5b02-4cbc-8824-ead43e9d6db0
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: My project 2026-05-15_23-32-25
-  organizationId: phylanc
+  projectName: MbNow
+  organizationId: unity_0c8795a2a75fd5bff67b
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}
