@@ -42,6 +42,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private string rollBoolParam = "IsRolling";
     [SerializeField] private AudioSource rollAudioSource;
     [SerializeField] private AudioClip rollClip;
+
+    [Header("Ground Check")]
+    [SerializeField] private float groundCheckRadiusScale = 0.95f;
+    [SerializeField] private float groundCheckExtraDistance = 0.2f;
     
     
     // ── Компоненты ───────────────────────────────────────────
@@ -61,6 +65,7 @@ public class PlayerController : MonoBehaviour
     private float _rollTimer;
     private float _rollCooldownTimer;
     private Vector3 _rollDir;
+    private bool _isGrounded;
 
     // ── Unity ────────────────────────────────────────────────
 
@@ -87,6 +92,7 @@ public class PlayerController : MonoBehaviour
     private void Update()
     {
         ReadInput();
+        _isGrounded = CheckGrounded();
         HandleCoyoteTime();
         HandleJumpBuffer();
         UpdateRollTimers();
@@ -159,6 +165,9 @@ public class PlayerController : MonoBehaviour
 
         // Прыжок: Space или кнопка South (крест/A) на геймпаде
         bool jumpKey = Input.GetKeyDown(KeyCode.Space);
+        var keyboard = Keyboard.current;
+        if (!jumpKey && keyboard != null)
+            jumpKey = keyboard.spaceKey.wasPressedThisFrame;
         bool jumpPad = gamepad != null && gamepad.buttonSouth.wasPressedThisFrame;
         if (jumpKey || jumpPad)
             _jumpBufferTimer = jumpBufferTime;
@@ -169,9 +178,21 @@ public class PlayerController : MonoBehaviour
         if (_isRolling) return;
         if (isClimbing) return;
         if (_rollCooldownTimer > 0f) return;
-        if (!_cc.isGrounded) return;
+        if (!_isGrounded) return;
 
-        if (Input.GetKeyDown(rollKey))
+        bool rollPressed = Input.GetKeyDown(rollKey);
+        var keyboard = Keyboard.current;
+        if (!rollPressed && keyboard != null)
+        {
+            if (rollKey == KeyCode.LeftShift)
+                rollPressed = keyboard.leftShiftKey.wasPressedThisFrame;
+            else if (rollKey == KeyCode.RightShift)
+                rollPressed = keyboard.rightShiftKey.wasPressedThisFrame;
+            else if (rollKey == KeyCode.Space)
+                rollPressed = keyboard.spaceKey.wasPressedThisFrame;
+        }
+
+        if (rollPressed)
         {
             Vector3 moveDir = ComputeIsometricMove();
             if (moveDir.sqrMagnitude < 0.01f)
@@ -233,30 +254,32 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyMovement(Vector3 moveDir)
     {
-        // Плавное управление горизонтальной скоростью без падения до нуля
+        // Держим скорость при резкой смене направления (без "стопа")
         Vector3 currentHor = new Vector3(_velocity.x, 0f, _velocity.z);
-        Vector3 desired = moveDir.sqrMagnitude > 0.01f ? moveDir.normalized * moveSpeed : Vector3.zero;
+        float currentSpeed = currentHor.magnitude;
+        float targetSpeed = moveDir.sqrMagnitude > 0.01f ? moveSpeed : 0f;
         float rate = moveDir.sqrMagnitude > 0.01f ? acceleration : deceleration;
 
-        Vector3 newHor = Vector3.MoveTowards(currentHor, desired, rate * Time.deltaTime);
-        _velocity.x = newHor.x;
-        _velocity.z = newHor.z;
+        currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, rate * Time.deltaTime);
+
+        if (moveDir.sqrMagnitude > 0.01f)
+        {
+            Vector3 dir = moveDir.normalized;
+            _velocity.x = dir.x * currentSpeed;
+            _velocity.z = dir.z * currentSpeed;
+        }
+        else
+        {
+            _velocity.x = 0f;
+            _velocity.z = 0f;
+        }
     }
 
     // ── Гравитация и прыжок ───────────────────────────────────
 
     private void ApplyGravity()
     {
-        bool grounded = _cc.isGrounded;
-
-        // Если CharacterController еще не понял, что на земле (потому что скорость Y в нуле)
-        if (!grounded && _velocity.y <= 0f)
-        {
-            grounded = Physics.SphereCast(transform.position + Vector3.up * (_cc.radius + 0.1f), 
-                                          _cc.radius, Vector3.down, out _, 0.2f);
-        }
-
-        if (grounded && _velocity.y <= 0f)
+        if (_isGrounded && _velocity.y <= 0f)
         {
             _velocity.y  = -2f;          // прижимаем к земле
             _coyoteTimer = coyoteTime;   // сбрасываем coyote
@@ -275,13 +298,13 @@ public class PlayerController : MonoBehaviour
         }
 
         // Улучшенная гравитация: быстрее падаем
-        float gMult = _velocity.y < 0f && !grounded ? fallMultiplier : 1f;
+        float gMult = _velocity.y < 0f && !_isGrounded ? fallMultiplier : 1f;
         _velocity.y += gravity * gMult * Time.deltaTime;
     }
 
     private void HandleCoyoteTime()
     {
-        if (_cc.isGrounded)
+        if (_isGrounded)
             _coyoteTimer = coyoteTime;
         else
             _coyoteTimer -= Time.deltaTime;
@@ -372,6 +395,23 @@ public class PlayerController : MonoBehaviour
     {
         isClimbing = false;
         _velocity.y = 0f;
+    }
+
+    private bool CheckGrounded()
+    {
+        if (_cc == null)
+        {
+            return false;
+        }
+
+        if (_cc.isGrounded)
+        {
+            return true;
+        }
+
+        float radius = Mathf.Max(0.01f, _cc.radius * groundCheckRadiusScale);
+        Vector3 origin = transform.position + Vector3.up * (_cc.radius + 0.05f);
+        return Physics.SphereCast(origin, radius, Vector3.down, out _, groundCheckExtraDistance);
     }
 
     // ── Гизмо ────────────────────────────────────────────────
