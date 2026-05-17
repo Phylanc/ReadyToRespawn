@@ -33,15 +33,16 @@ public class LadderClimber : MonoBehaviour
         }
 
         float v = GetVerticalInput();
+        bool wantsClimb = Mathf.Abs(v) > 0.01f;
 
-        if (_isClimbing && Mathf.Abs(v) <= 0.01f)
+        if (!wantsClimb)
         {
             StopClimbIfNeeded();
             return;
         }
 
         // Начинаем лезть, если приложено усилие
-        if (Mathf.Abs(v) > 0.01f)
+        if (wantsClimb)
         {
             StartClimb();
         }
@@ -98,9 +99,13 @@ public class LadderClimber : MonoBehaviour
 
     void StopClimbIfNeeded()
     {
-        if (!_isClimbing) return;
-        _isClimbing = false;
-        if (playerController != null) playerController.SetClimbing(false);
+        if (_isClimbing)
+        {
+            _isClimbing = false;
+        }
+
+        if (playerController != null && playerController.isClimbing)
+            playerController.SetClimbing(false);
     }
 
     void OnTriggerEnter(Collider other)
