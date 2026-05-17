@@ -29,10 +29,25 @@ public class PlayerController : MonoBehaviour
     [Header("Sprite Flip")]
     [SerializeField] private SpriteRenderer spriteToFlip;
     [SerializeField] private bool invertFlip = false;
+    [SerializeField] private SpriteRenderer weaponSpriteToFlip;
+    [SerializeField] private Transform weaponRoot;
     [SerializeField] private FlashlightController flashlightController;
 
+    [Header("Перекат")]
+    [SerializeField] private KeyCode rollKey = KeyCode.LeftShift;
+    [SerializeField] private float rollSpeed = 10f;
+    [SerializeField] private float rollDuration = 0.35f;
+    [SerializeField] private float rollCooldown = 0.75f;
+    [SerializeField] private Animator animator;
+    [SerializeField] private string rollBoolParam = "IsRolling";
+    [SerializeField] private AudioSource rollAudioSource;
+    [SerializeField] private AudioClip rollClip;
+    
+    
     // ── Компоненты ───────────────────────────────────────────
     private CharacterController _cc;
+
+    public bool isClimbing = false;
 
     // ── Состояние ────────────────────────────────────────────
     private Vector2 _moveInput;      // сырой ввод (WASD или стик)
@@ -41,6 +56,11 @@ public class PlayerController : MonoBehaviour
     private float _coyoteTimer;
     private float _jumpBufferTimer;
     private bool _facingRight = true;
+    private Vector3 _lastMoveDir;
+    private bool _isRolling;
+    private float _rollTimer;
+    private float _rollCooldownTimer;
+    private Vector3 _rollDir;
 
     // ── Unity ────────────────────────────────────────────────
 
@@ -56,6 +76,12 @@ public class PlayerController : MonoBehaviour
 
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
+
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
+
+        if (rollAudioSource == null)
+            rollAudioSource = GetComponent<AudioSource>();
     }
 
     private void Update()
@@ -63,14 +89,41 @@ public class PlayerController : MonoBehaviour
         ReadInput();
         HandleCoyoteTime();
         HandleJumpBuffer();
+        UpdateRollTimers();
+
+        TryStartRoll();
 
         Vector3 moveDir = ComputeIsometricMove();
-        ApplyMovement(moveDir);
+        _lastMoveDir = moveDir;
+        if (_isRolling)
+        {
+            _velocity.x = _rollDir.x * rollSpeed;
+            _velocity.z = _rollDir.z * rollSpeed;
+        }
+        else
+        {
+            ApplyMovement(moveDir);
+        }
+
         ApplyGravity();
-        RotateTowardsMoveDirection(moveDir);
+
+        // Не крутим физически рутовую капсулу, если включено отслеживание камеры (2D спрайт)
+        if (!faceCamera && !_isRolling)
+        {
+            RotateTowardsMoveDirection(moveDir);
+        }
+
         UpdateSpriteFacing();
 
-        _cc.Move(_velocity * Time.deltaTime);
+        if (isClimbing)
+        {
+            _velocity.y = 0f; // Убираем гравитацию на лестнице
+            _cc.Move(new Vector3(_velocity.x, 0, _velocity.z) * Time.deltaTime);
+        }
+        else
+        {
+            _cc.Move(_velocity * Time.deltaTime);
+        }
     }
 
     private void LateUpdate()
@@ -111,6 +164,51 @@ public class PlayerController : MonoBehaviour
             _jumpBufferTimer = jumpBufferTime;
     }
 
+    private void TryStartRoll()
+    {
+        if (_isRolling) return;
+        if (isClimbing) return;
+        if (_rollCooldownTimer > 0f) return;
+        if (!_cc.isGrounded) return;
+
+        if (Input.GetKeyDown(rollKey))
+        {
+            Vector3 moveDir = ComputeIsometricMove();
+            if (moveDir.sqrMagnitude < 0.01f)
+                moveDir = transform.forward;
+            moveDir.y = 0f;
+            moveDir.Normalize();
+
+            _rollDir = moveDir;
+            _rollTimer = rollDuration;
+            _rollCooldownTimer = rollCooldown;
+            _isRolling = true;
+
+            if (animator != null && !string.IsNullOrEmpty(rollBoolParam))
+                animator.SetBool(rollBoolParam, true);
+
+            if (rollAudioSource != null && rollClip != null)
+                rollAudioSource.PlayOneShot(rollClip);
+        }
+    }
+
+    private void UpdateRollTimers()
+    {
+        if (_rollCooldownTimer > 0f)
+            _rollCooldownTimer -= Time.deltaTime;
+
+        if (_isRolling)
+        {
+            _rollTimer -= Time.deltaTime;
+            if (_rollTimer <= 0f)
+            {
+                _isRolling = false;
+                if (animator != null && !string.IsNullOrEmpty(rollBoolParam))
+                    animator.SetBool(rollBoolParam, false);
+            }
+        }
+    }
+
     // ── Isometric проекция ────────────────────────────────────
 
     /// Переводим плоский ввод в направление относительно isometric-камеры.
@@ -135,14 +233,14 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyMovement(Vector3 moveDir)
     {
-        float targetSpeed = moveDir.sqrMagnitude > 0.01f ? moveSpeed : 0f;
-        Vector3 targetVel = moveDir * targetSpeed;
+        // Плавное управление горизонтальной скоростью без падения до нуля
+        Vector3 currentHor = new Vector3(_velocity.x, 0f, _velocity.z);
+        Vector3 desired = moveDir.sqrMagnitude > 0.01f ? moveDir.normalized * moveSpeed : Vector3.zero;
+        float rate = moveDir.sqrMagnitude > 0.01f ? acceleration : deceleration;
 
-        float rate = targetSpeed > 0.01f ? acceleration : deceleration;
-
-        // Плавно меняем только горизонтальную скорость
-        _velocity.x = Mathf.MoveTowards(_velocity.x, targetVel.x, rate * Time.deltaTime);
-        _velocity.z = Mathf.MoveTowards(_velocity.z, targetVel.z, rate * Time.deltaTime);
+        Vector3 newHor = Vector3.MoveTowards(currentHor, desired, rate * Time.deltaTime);
+        _velocity.x = newHor.x;
+        _velocity.z = newHor.z;
     }
 
     // ── Гравитация и прыжок ───────────────────────────────────
@@ -151,7 +249,14 @@ public class PlayerController : MonoBehaviour
     {
         bool grounded = _cc.isGrounded;
 
-        if (grounded && _velocity.y < 0f)
+        // Если CharacterController еще не понял, что на земле (потому что скорость Y в нуле)
+        if (!grounded && _velocity.y <= 0f)
+        {
+            grounded = Physics.SphereCast(transform.position + Vector3.up * (_cc.radius + 0.1f), 
+                                          _cc.radius, Vector3.down, out _, 0.2f);
+        }
+
+        if (grounded && _velocity.y <= 0f)
         {
             _velocity.y  = -2f;          // прижимаем к земле
             _coyoteTimer = coyoteTime;   // сбрасываем coyote
@@ -170,7 +275,7 @@ public class PlayerController : MonoBehaviour
         }
 
         // Улучшенная гравитация: быстрее падаем
-        float gMult = _velocity.y < 0f ? fallMultiplier : 1f;
+        float gMult = _velocity.y < 0f && !grounded ? fallMultiplier : 1f;
         _velocity.y += gravity * gMult * Time.deltaTime;
     }
 
@@ -223,18 +328,50 @@ public class PlayerController : MonoBehaviour
     {
         if (spriteToFlip == null) return;
 
-        if (flashlightController != null && flashlightController.IsOn)
-        {
-            _facingRight = flashlightController.FacingRight;
-        }
-        else
-        {
-            if (_moveInput.x > 0.01f) _facingRight = true;
-            else if (_moveInput.x < -0.01f) _facingRight = false;
-        }
+        float axis = _moveInput.x;
+        if (cameraTransform != null && _lastMoveDir.sqrMagnitude > 0.0001f)
+            axis = Vector3.Dot(_lastMoveDir.normalized, cameraTransform.right);
+
+        if (axis > 0.01f) _facingRight = true;
+        else if (axis < -0.01f) _facingRight = false;
 
         bool faceLeft = !_facingRight;
         spriteToFlip.flipX = invertFlip ? !faceLeft : faceLeft;
+
+        if (weaponSpriteToFlip != null)
+            weaponSpriteToFlip.flipX = invertFlip ? !faceLeft : faceLeft;
+
+        if (weaponRoot != null)
+        {
+            Vector3 scale = weaponRoot.localScale;
+            float xSign = faceLeft ? -1f : 1f;
+            weaponRoot.localScale = new Vector3(Mathf.Abs(scale.x) * xSign, scale.y, scale.z);
+        }
+
+        if (flashlightController != null)
+            flashlightController.SetFacingRight(_facingRight);
+    }
+
+    public void SetClimbing(bool climbing)
+    {
+        isClimbing = climbing;
+
+        if (climbing)
+        {
+            _velocity = Vector3.zero;
+            _jumpBufferTimer = 0f;
+            _coyoteTimer = 0f;
+            _isRolling = false;
+
+            if (animator != null && !string.IsNullOrEmpty(rollBoolParam))
+                animator.SetBool(rollBoolParam, false);
+        }
+    }
+
+    public void StopClimbingMotion()
+    {
+        isClimbing = false;
+        _velocity.y = 0f;
     }
 
     // ── Гизмо ────────────────────────────────────────────────

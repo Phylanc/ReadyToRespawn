@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class FlashlightController : MonoBehaviour
 {
@@ -13,6 +12,10 @@ public class FlashlightController : MonoBehaviour
     [Header("Фонарик")]
     public KeyCode flashlightKey = KeyCode.F;
     public float activeDuration  = 2f;
+    public float cooldownDuration = 10f;
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip cooldownClip;
+    [SerializeField] private float cooldownSoundInterval = 0.5f;
 
     [Header("Урон в конусе")]
     public float  range           = 10f;
@@ -25,16 +28,21 @@ public class FlashlightController : MonoBehaviour
     public bool showGizmos = true;
 
     bool  _isOn;
+    bool  _isAllowed = true;
+    bool  _isCoolingDown;
     float _cosThreshold;
     bool  _facingRight = true;
+    float _lastCooldownSoundTime;
 
     Coroutine _damageRoutine;
     Coroutine _autoOffRoutine;
+    Coroutine _cooldownRoutine;
 
     readonly WaitForSeconds _tick = new WaitForSeconds(0.1f);
 
     public bool IsOn => _isOn;
     public bool FacingRight => _facingRight;
+    public bool IsCoolingDown => _isCoolingDown;
 
     void Awake()
     {
@@ -49,6 +57,9 @@ public class FlashlightController : MonoBehaviour
         else
             flashlight.enabled = false;
 
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
+
         _cosThreshold = Mathf.Cos(coneAngle * Mathf.Deg2Rad);
 
         if (enemyLayer.value == 0)
@@ -57,36 +68,42 @@ public class FlashlightController : MonoBehaviour
 
     void Update()
     {
-        UpdateAim();
+        if (!_isAllowed) return;
 
         if (Input.GetKeyDown(flashlightKey) && !_isOn) Activate();
-        if (Input.GetKeyUp(flashlightKey)   &&  _isOn) Deactivate();
+        if (Input.GetKeyUp(flashlightKey)   &&  _isOn) Deactivate(true);
     }
 
-    void UpdateAim()
+    public void SetAllowed(bool allowed)
     {
-        float h = Input.GetAxisRaw("Horizontal");
-
-        var gamepad = UnityEngine.InputSystem.Gamepad.current;
-        if (gamepad != null)
+        _isAllowed = allowed;
+        if (!_isAllowed)
         {
-            Vector2 stick = gamepad.leftStick.ReadValue();
-            if (Mathf.Abs(stick.x) > 0.1f)
-                h = stick.x;
+            Deactivate(false);
         }
+    }
 
-        if (h > 0.01f) _facingRight = true;
-        else if (h < -0.01f) _facingRight = false;
+    public void SetFacingRight(bool facingRight)
+    {
+        _facingRight = facingRight;
+        ApplyAimRotation();
+    }
 
-        Vector3 dir = _facingRight ? aimRoot.right : -aimRoot.right;
-        dir.y = 0f;
-        if (dir.sqrMagnitude < 0.0001f) return;
-
+    void ApplyAimRotation()
+    {
+        // Поворачиваем по мировой оси X, так как игра 2.5D/Изометрия с плоским спрайтом
+        Vector3 dir = _facingRight ? Vector3.right : Vector3.left;
         transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
     }
 
     void Activate()
     {
+        if (_isCoolingDown)
+        {
+            PlayCooldownSound();
+            return;
+        }
+
         _isOn = true;
         if (flashlight != null) flashlight.enabled = true;
         StopAllRoutines();
@@ -94,23 +111,45 @@ public class FlashlightController : MonoBehaviour
         _autoOffRoutine = StartCoroutine(AutoOff());
     }
 
-    void Deactivate()
+    void Deactivate(bool startCooldown)
     {
         _isOn = false;
         if (flashlight != null) flashlight.enabled = false;
         StopAllRoutines();
+
+        if (startCooldown && !_isCoolingDown && _isAllowed)
+        {
+            PlayCooldownSound();
+            _cooldownRoutine = StartCoroutine(Cooldown());
+        }
     }
 
     void StopAllRoutines()
     {
         if (_damageRoutine  != null) { StopCoroutine(_damageRoutine);  _damageRoutine  = null; }
         if (_autoOffRoutine != null) { StopCoroutine(_autoOffRoutine); _autoOffRoutine = null; }
+        if (_cooldownRoutine != null) { StopCoroutine(_cooldownRoutine); _cooldownRoutine = null; }
     }
 
     IEnumerator AutoOff()
     {
         yield return new WaitForSeconds(activeDuration);
-        Deactivate();
+        Deactivate(true);
+    }
+
+    IEnumerator Cooldown()
+    {
+        _isCoolingDown = true;
+        yield return new WaitForSeconds(cooldownDuration);
+        _isCoolingDown = false;
+    }
+
+    void PlayCooldownSound()
+    {
+        if (audioSource == null || cooldownClip == null) return;
+        if (Time.time - _lastCooldownSoundTime < cooldownSoundInterval) return;
+        _lastCooldownSoundTime = Time.time;
+        audioSource.PlayOneShot(cooldownClip);
     }
 
     IEnumerator DamageTick()
