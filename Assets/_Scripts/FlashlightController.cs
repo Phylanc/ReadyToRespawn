@@ -1,10 +1,14 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class FlashlightController : MonoBehaviour
 {
     [Header("Свет (найдёт сам если пусто)")]
     public Light flashlight;
+
+    [Header("Aim (только влево/вправо)")]
+    [SerializeField] private Transform aimRoot;
 
     [Header("Фонарик")]
     public KeyCode flashlightKey = KeyCode.F;
@@ -22,16 +26,23 @@ public class FlashlightController : MonoBehaviour
 
     bool  _isOn;
     float _cosThreshold;
+    bool  _facingRight = true;
 
     Coroutine _damageRoutine;
     Coroutine _autoOffRoutine;
 
     readonly WaitForSeconds _tick = new WaitForSeconds(0.1f);
 
+    public bool IsOn => _isOn;
+    public bool FacingRight => _facingRight;
+
     void Awake()
     {
         if (flashlight == null)
             flashlight = GetComponentInChildren<Light>(includeInactive: true);
+
+        if (aimRoot == null)
+            aimRoot = transform.parent != null ? transform.parent : transform;
 
         if (flashlight == null)
             Debug.LogError("[Flashlight] Light не найден!");
@@ -46,8 +57,32 @@ public class FlashlightController : MonoBehaviour
 
     void Update()
     {
+        UpdateAim();
+
         if (Input.GetKeyDown(flashlightKey) && !_isOn) Activate();
         if (Input.GetKeyUp(flashlightKey)   &&  _isOn) Deactivate();
+    }
+
+    void UpdateAim()
+    {
+        float h = Input.GetAxisRaw("Horizontal");
+
+        var gamepad = UnityEngine.InputSystem.Gamepad.current;
+        if (gamepad != null)
+        {
+            Vector2 stick = gamepad.leftStick.ReadValue();
+            if (Mathf.Abs(stick.x) > 0.1f)
+                h = stick.x;
+        }
+
+        if (h > 0.01f) _facingRight = true;
+        else if (h < -0.01f) _facingRight = false;
+
+        Vector3 dir = _facingRight ? aimRoot.right : -aimRoot.right;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) return;
+
+        transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
     }
 
     void Activate()

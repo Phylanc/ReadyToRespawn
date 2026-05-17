@@ -26,6 +26,11 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform faceRoot;
     [SerializeField] private Transform faceTarget;
 
+    [Header("Sprite Flip")]
+    [SerializeField] private SpriteRenderer spriteToFlip;
+    [SerializeField] private bool invertFlip = false;
+    [SerializeField] private FlashlightController flashlightController;
+
     // ── Компоненты ───────────────────────────────────────────
     private CharacterController _cc;
 
@@ -35,12 +40,19 @@ public class PlayerController : MonoBehaviour
 
     private float _coyoteTimer;
     private float _jumpBufferTimer;
+    private bool _facingRight = true;
 
     // ── Unity ────────────────────────────────────────────────
 
     private void Awake()
     {
         _cc = GetComponent<CharacterController>();
+
+        if (spriteToFlip == null)
+            spriteToFlip = GetComponentInChildren<SpriteRenderer>();
+
+        if (flashlightController == null)
+            flashlightController = GetComponentInChildren<FlashlightController>();
 
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
@@ -56,6 +68,7 @@ public class PlayerController : MonoBehaviour
         ApplyMovement(moveDir);
         ApplyGravity();
         RotateTowardsMoveDirection(moveDir);
+        UpdateSpriteFacing();
 
         _cc.Move(_velocity * Time.deltaTime);
     }
@@ -204,6 +217,24 @@ public class PlayerController : MonoBehaviour
         if (dir.sqrMagnitude < 0.0001f) return;
 
         root.rotation = Quaternion.LookRotation(dir, Vector3.up);
+    }
+
+    private void UpdateSpriteFacing()
+    {
+        if (spriteToFlip == null) return;
+
+        if (flashlightController != null && flashlightController.IsOn)
+        {
+            _facingRight = flashlightController.FacingRight;
+        }
+        else
+        {
+            if (_moveInput.x > 0.01f) _facingRight = true;
+            else if (_moveInput.x < -0.01f) _facingRight = false;
+        }
+
+        bool faceLeft = !_facingRight;
+        spriteToFlip.flipX = invertFlip ? !faceLeft : faceLeft;
     }
 
     // ── Гизмо ────────────────────────────────────────────────
