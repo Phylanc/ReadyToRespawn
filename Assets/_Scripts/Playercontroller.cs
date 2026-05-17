@@ -18,7 +18,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpBufferTime = 0.15f;
 
     [Header("Isometric камера")]
-    [SerializeField] private Transform cameraTransform; // перетащи Main Camera сюда
+    [SerializeField] private Transform cameraTransform; 
+
+    [Header("Следить за камерой")]
+    [SerializeField] private bool faceCamera = false;
+    [SerializeField] private bool faceCameraYOnly = true;
+    [SerializeField] private Transform faceRoot;
+    [SerializeField] private Transform faceTarget;
 
     // ── Компоненты ───────────────────────────────────────────
     private CharacterController _cc;
@@ -52,6 +58,11 @@ public class PlayerController : MonoBehaviour
         RotateTowardsMoveDirection(moveDir);
 
         _cc.Move(_velocity * Time.deltaTime);
+    }
+
+    private void LateUpdate()
+    {
+        FaceCameraIfEnabled();
     }
 
     // ── Ввод ─────────────────────────────────────────────────
@@ -176,6 +187,23 @@ public class PlayerController : MonoBehaviour
             targetRot,
             rotationSpeed * Time.deltaTime
         );
+    }
+
+    private void FaceCameraIfEnabled()
+    {
+        if (!faceCamera) return;
+
+        Transform target = faceTarget;
+        if (target == null && Camera.main != null)
+            target = Camera.main.transform;
+        if (target == null) return;
+
+        Transform root = faceRoot != null ? faceRoot : transform;
+        Vector3 dir = target.position - root.position;
+        if (faceCameraYOnly) dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) return;
+
+        root.rotation = Quaternion.LookRotation(dir, Vector3.up);
     }
 
     // ── Гизмо ────────────────────────────────────────────────

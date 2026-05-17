@@ -32,7 +32,7 @@ public class FlashlightDistortable : MonoBehaviour
 
         if (mf == null || rend == null)
         {
-            Debug.LogError($"[Distortable] MeshFilter или Renderer не найден на '{name}'");
+//            Debug.LogError($"[Distortable] MeshFilter или Renderer не найден на '{name}'");
             enabled = false;
             return;
         }
